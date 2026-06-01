@@ -1,0 +1,62 @@
+name: build-mobian-deb
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-arm64-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build in Debian arm64 container
+        run: |
+          docker run --rm --privileged \
+            -v $PWD:/src \
+            -w /src \
+            arm64v8/debian:bookworm bash -c "
+              apt update &&
+              apt install -y git curl build-essential dpkg-dev fakeroot \
+                             clang cmake ninja-build pkg-config
+
+              echo '=== install Flutter/Deps if needed ==='
+
+              # 如果是 Flutter 项目（PiliPlus很可能是）
+              # 这里建议你提前在 repo 里锁定 flutter sdk 或用 prebuilt
+
+              echo '=== build app ==='
+              ./build.sh || true
+
+              echo '=== build deb ==='
+
+              mkdir -p debian/DEBIAN
+
+              cat > debian/DEBIAN/control <<EOF
+Package: piliplus
+Version: 1.0.0
+Architecture: arm64
+Maintainer: you
+Depends: libgtk-3-0, libwebkit2gtk-4.0-37
+Description: PiliPlus mobile client
+EOF
+
+              mkdir -p debian/usr/bin
+              cp -r build/output/* debian/usr/bin/ || true
+
+              dpkg-deb --build debian piliplus-arm64.deb
+            "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: piliplus-deb
+          path: "*.deb"
