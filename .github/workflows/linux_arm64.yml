@@ -54,13 +54,27 @@ jobs:
             x11proto-core-dev zlib1g-dev libfdk-aac-dev libtheora-dev libwebp-dev \
             unixodbc-dev libpq-dev libxxhash-dev libaom-dev libmpv-dev
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      # stable channel has no arm64 Linux SDK in flutter-action's release index; use git tag.
+      - name: Cache Flutter SDK
+        uses: actions/cache@v4
         with:
-          channel: stable
-          flutter-version-file: pubspec.yaml
-          cache: true
-          architecture: arm64
+          path: |
+            ~/flutter
+            ~/.pub-cache
+          key: flutter-arm64-${{ hashFiles('pubspec.yaml', 'pubspec.lock') }}
+          restore-keys: flutter-arm64-
+
+      - name: Setup Flutter
+        run: |
+          FLUTTER_VERSION="$(grep -E '^\s*flutter:\s*' pubspec.yaml | head -1 | awk '{print $2}')"
+          export FLUTTER_ROOT="${HOME}/flutter"
+          if [[ ! -x "${FLUTTER_ROOT}/bin/flutter" ]]; then
+            git clone --depth 1 -b "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_ROOT}"
+          fi
+          echo "${FLUTTER_ROOT}/bin" >> "${GITHUB_PATH}"
+          flutter config --enable-linux-desktop
+          flutter precache --linux
+          flutter --version
 
       - name: Prepare version and build Linux arm64
         run: bash .github/scripts/build-linux-arm64-deb.sh
