@@ -67,11 +67,12 @@ jobs:
       - name: Setup Flutter
         run: |
           FLUTTER_VERSION="$(grep -E '^\s*flutter:\s*' pubspec.yaml | head -1 | awk '{print $2}')"
-          export FLUTTER_ROOT="${HOME}/flutter"
+          FLUTTER_ROOT="${HOME}/flutter"
           if [[ ! -x "${FLUTTER_ROOT}/bin/flutter" ]]; then
             git clone --depth 1 -b "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_ROOT}"
           fi
           echo "${FLUTTER_ROOT}/bin" >> "${GITHUB_PATH}"
+          export PATH="${FLUTTER_ROOT}/bin:${PATH}"
           flutter config --enable-linux-desktop
           flutter precache --linux
           flutter --version
