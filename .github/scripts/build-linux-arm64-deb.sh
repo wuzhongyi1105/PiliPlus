@@ -21,6 +21,8 @@ apt-get install -y --no-install-recommends \
   libfontconfig-dev libfreetype6-dev
 
 version_name="$(grep -E '^\s*version:' pubspec.yaml | head -1 | sed -E 's/^\s*version:\s*([0-9.]+).*/\1/')"
+git config --global --add safe.directory /src
+git config --global --add safe.directory '*'
 version_code="$(git rev-list --count HEAD)"
 commit_hash="$(git rev-parse HEAD)"
 build_time="$(date +%s)"
