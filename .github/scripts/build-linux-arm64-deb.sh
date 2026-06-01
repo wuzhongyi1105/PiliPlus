@@ -1,28 +1,8 @@
 #!/usr/bin/env bash
-# Runs inside arm64v8/debian:bookworm (Mobian-compatible arm64 build).
+# Build and package PiliPlus for Linux arm64 on ubuntu-24.04-arm (GitHub Actions).
 set -euo pipefail
 
-export DEBIAN_FRONTEND=noninteractive
-export PATH="/opt/flutter/bin:${PATH}"
-export PUB_CACHE="/root/.pub-cache"
-export FLUTTER_ROOT="/opt/flutter"
-
-apt-get update
-apt-get install -y --no-install-recommends \
-  ca-certificates curl git unzip xz-utils \
-  bash coreutils findutils sed gawk grep \
-  clang cmake ninja-build pkg-config dpkg-dev \
-  libgtk-3-dev libayatana-appindicator3-dev \
-  libwebkit2gtk-4.0-dev libasound2-dev \
-  libmpv-dev patchelf \
-  libblkid-dev liblzma-dev libstdc++-12-dev \
-  libgl1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
-  libdrm-dev libgbm-dev libxkbcommon-dev \
-  libfontconfig-dev libfreetype6-dev
-
 version_name="$(grep -E '^\s*version:' pubspec.yaml | head -1 | sed -E 's/^\s*version:\s*([0-9.]+).*/\1/')"
-git config --global --add safe.directory /src
-git config --global --add safe.directory '*'
 version_code="$(git rev-list --count HEAD)"
 commit_hash="$(git rev-parse HEAD)"
 build_time="$(date +%s)"
@@ -33,16 +13,16 @@ printf '{"pili.name":"%s","pili.code":%s,"pili.hash":"%s","pili.time":%s}\n' \
   "$version_name" "$version_code" "$commit_hash" "$build_time" > pili_release.json
 echo "version=${full_version}" >> "${GITHUB_ENV}"
 
-if [[ ! -d "${FLUTTER_ROOT}/bin" ]]; then
-  git clone --depth 1 -b "${FLUTTER_VERSION}" https://github.com/flutter/flutter.git "${FLUTTER_ROOT}"
-fi
 flutter config --enable-linux-desktop
-flutter precache --linux
 flutter pub get
-flutter build linux --release -v --dart-define-from-file=pili_release.json
+flutter build linux --release -v --pub --dart-define-from-file=pili_release.json
 
 bundle_dir="build/linux/arm64/release/bundle"
-test -d "${bundle_dir}"
+if [[ ! -d "${bundle_dir}" ]]; then
+  echo "ERROR: bundle not found at ${bundle_dir}"
+  ls -la build/linux || true
+  exit 1
+fi
 
 tar -zcvf "PiliPlus_linux_${full_version}_arm64.tar.gz" -C "${bundle_dir}" .
 
@@ -76,3 +56,4 @@ chmod 0755 DEBIAN/postinst DEBIAN/postrm DEBIAN/prerm
 popd >/dev/null
 
 dpkg-deb --build --root-owner-group "${pkg_root}"
+echo "Built ${pkg_root}.deb"
