@@ -29,10 +29,13 @@ tar -zcvf "PiliPlus_linux_${full_version}_arm64.tar.gz" -C "${bundle_dir}" .
 pkg_root="PiliPlus_linux_${full_version}_arm64"
 rm -rf "${pkg_root}"
 mkdir -p "${pkg_root}/opt/PiliPlus" \
+         "${pkg_root}/usr/bin" \
          "${pkg_root}/usr/share/applications" \
          "${pkg_root}/usr/share/icons/hicolor/512x512/apps"
 
 cp -a "${bundle_dir}/." "${pkg_root}/opt/PiliPlus/"
+install -m 755 assets/linux/piliplus.launcher "${pkg_root}/usr/bin/piliplus"
+install -m 755 assets/linux/piliplus.launcher "${pkg_root}/opt/PiliPlus/piliplus.launcher"
 cp -a assets/linux/DEBIAN "${pkg_root}/DEBIAN"
 cp assets/linux/com.example.piliplus.desktop "${pkg_root}/usr/share/applications/"
 cp assets/images/logo/logo.png "${pkg_root}/usr/share/icons/hicolor/512x512/apps/piliplus.png"
@@ -41,6 +44,7 @@ sed -i "2s/version_need_change/${full_version}/" "${pkg_root}/DEBIAN/control"
 sed -i 's/^Architecture: amd64/Architecture: arm64/' "${pkg_root}/DEBIAN/control"
 sed -i 's/libgtk-3-0t64/libgtk-3-0/' "${pkg_root}/DEBIAN/control"
 sed -i 's/libmpv2/libmpv1 | libmpv2/' "${pkg_root}/DEBIAN/control"
+sed -i 's/fonts-noto-cjk/fonts-noto-cjk | fonts-noto-cjk-extra | fonts-wqy-zenhei/' "${pkg_root}/DEBIAN/control"
 
 pushd "${pkg_root}" >/dev/null
 size_kb="$(du -s -b --apparent-size . | awk '{print int($1)}')"
@@ -49,6 +53,7 @@ size_kb="$(awk -v s="$size_kb" 'BEGIN { printf "%d", int(s/1024 + 0.999) }')"
 sed -i "9s/size_need_change/${size_kb}/" DEBIAN/control
 : > DEBIAN/md5sums
 md5sum opt/PiliPlus/piliplus >> DEBIAN/md5sums
+md5sum usr/bin/piliplus >> DEBIAN/md5sums
 find opt/PiliPlus/lib -type f -exec md5sum {} + >> DEBIAN/md5sums 2>/dev/null || true
 md5sum opt/PiliPlus/data/icudtl.dat >> DEBIAN/md5sums
 chmod 0644 DEBIAN/control DEBIAN/md5sums

@@ -4,17 +4,20 @@
 name: Build for Linux arm64 (Mobian)
 
 on:
+  push:
+    branches:
+      - main
   workflow_call:
     inputs:
       tag:
-        description: "Release tag (optional)"
+        description: "Release tag (optional, auto-generated if empty)"
         required: false
         default: ""
         type: string
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (optional)"
+        description: "Release tag (optional, auto-generated if empty)"
         required: false
         default: ""
         type: string
@@ -94,12 +97,43 @@ jobs:
           path: PiliPlus_linux_*_arm64.tar.gz
           if-no-files-found: error
 
-      - name: Release
-        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') || (github.event_name == 'workflow_call' && inputs.tag != '') }}
+      - name: Set release tag
+        run: |
+          manual_tag=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            manual_tag="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            manual_tag="${{ inputs.tag }}"
+          fi
+          if [ -n "$manual_tag" ]; then
+            echo "RELEASE_TAG=$manual_tag" >> "$GITHUB_ENV"
+          else
+            safe_version="$(echo "${version}" | tr '+' '-')"
+            echo "RELEASE_TAG=mobian-arm64-${safe_version}-b${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || inputs.tag }}
-          name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || inputs.tag }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: PiliPlus Mobian arm64 ${{ env.version }}
+          body: |
+            Linux **arm64** build for Mobian / Debian (e.g. OnePlus 6T).
+
+            | Item | Value |
+            |------|-------|
+            | Version | `${{ env.version }}` |
+            | Commit | `${{ github.sha }}` |
+            | Workflow | `${{ github.workflow }}` #${{ github.run_number }} |
+
+            **Install**
+            ```bash
+            sudo apt install -y fontconfig fonts-noto-core fonts-noto-cjk
+            sudo apt install ./PiliPlus_linux_*_arm64.deb
+            /usr/bin/piliplus
+            ```
           files: |
             PiliPlus_linux_*_arm64.deb
             PiliPlus_linux_*_arm64.tar.gz
+          generate_release_notes: true
+          make_latest: true

@@ -1,0 +1,21 @@
+#!/bin/sh
+# Launcher for packaged installs. Do not symlink the binary into /usr/bin:
+# DT_RUNPATH $ORIGIN/lib breaks when the executable path is /usr/bin/piliplus.
+
+INSTALL_DIR="/opt/PiliPlus"
+
+if [ ! -x "${INSTALL_DIR}/piliplus" ]; then
+  echo "PiliPlus: missing ${INSTALL_DIR}/piliplus" >&2
+  exit 1
+fi
+
+# Mobian / phone displays: override in ~/.config/piliplus/env if needed.
+: "${GDK_BACKEND:=wayland,x11}"
+: "${GDK_SCALE:=2.5}"
+: "${GDK_DPI_SCALE:=1.0}"
+
+export GDK_BACKEND GDK_SCALE GDK_DPI_SCALE
+export LD_LIBRARY_PATH="${INSTALL_DIR}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+
+cd "${INSTALL_DIR}" || exit 1
+exec "${INSTALL_DIR}/piliplus" "$@"
